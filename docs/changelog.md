@@ -1,6 +1,12 @@
-﻿# Changelog
+# 变更记录
 
 ## 2026-06-18
 
-- 新增（方案A）：本地 `transformers serve` 启动脚本 + Gradio WebUI + 本地部署文档
-
+- 新增项目内 Python 3.11 安装与本地依赖安装脚本
+- 新增模型下载脚本与 BNB int4 量化脚本
+- 新增基于 FastAPI 的 OpenAI 兼容本地 API：`/health`、`/v1/models`、`/v1/chat/completions`
+- 新增本地 Gradio WebUI，支持图片、视频上传与纯音频占位提示
+- 新增 Thinking 输出控制：默认中文回答、关闭可见思考过程、过滤 `<think>` 内容
+- 新增单窗口统一启动脚本，支持端口占用自动顺延与日志前缀输出
+- 新增本地部署、API、交付说明和启动设计文档
+- 新增覆盖运行时、端口、媒体输入、WebUI 与启动脚本的测试

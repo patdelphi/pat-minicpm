@@ -1,39 +1,39 @@
-﻿# MiniCPM-V 4.6 Local Delivery README
+﻿# MiniCPM-V 4.6 本地交付说明
 
-## 1. Overview
+## 1. 说明
 
-This file documents the local delivery work added on top of the upstream project.
-It does not replace the original `"README.md"` or `"README_zh.md"`.
+本文档用于说明当前仓库新增的本地交付能力。
+它是对上游项目的本地化补充，不替代原始 `"README.md"` 或 `"README_zh.md"`。
 
-Current local delivery scope:
+当前交付范围包括：
 
-- Project-local Python 3.11 under `"tools/python311"`
-- Local model path support under `"models/"`
-- OpenAI-compatible local API
-- Local Gradio WebUI
-- Single-window startup script
-- Image parsing support
-- Video parsing support
-- Audio upload placeholder response
+- 项目内独立 Python 3.11 运行时：`"tools/python311"`
+- 本地模型目录支持：`"models/"`
+- OpenAI 兼容本地 API
+- 本地 Gradio WebUI
+- 单窗口前后端统一启动脚本
+- 图片解析支持
+- 视频解析支持
+- 纯音频上传占位提示
 
-## 2. Local Runtime Layout
+## 2. 目录结构
 
-Key local directories and files:
+本次交付涉及的关键目录和文件如下：
 
-- `"tools/python311"`: project-local Python runtime
-- `"config/local.env"`: local runtime configuration
-- `"scripts/install.ps1"`: local dependency install script
-- `"scripts/start_api.ps1"`: API startup script
-- `"scripts/start_webui.ps1"`: WebUI startup script
-- `"scripts/start_stack.bat"`: unified single-window launcher
-- `"scripts/start_stack.ps1"`: unified single-window launcher logic
-- `"api/"`: local OpenAI-compatible API implementation
-- `"webui/"`: local Gradio WebUI
-- `"aipython/"`: local helper scripts
+- `"tools/python311"`：项目内 Python 运行时
+- `"config/local.env"`：本地运行配置
+- `"scripts/install.ps1"`：安装依赖脚本
+- `"scripts/start_api.ps1"`：API 启动脚本
+- `"scripts/start_webui.ps1"`：WebUI 启动脚本
+- `"scripts/start_stack.bat"`：统一启动入口
+- `"scripts/start_stack.ps1"`：统一启动逻辑
+- `"api/"`：本地 OpenAI 兼容 API 实现
+- `"webui/"`：本地 Gradio WebUI
+- `"aipython/"`：下载、量化、端口选择、媒体处理等辅助脚本
 
-## 3. Current Model Configuration
+## 3. 当前默认配置
 
-Default local configuration from `"config/local.env"`:
+默认配置来自 `"config/local.env"`：
 
 - `MODEL_ID=openbmb/MiniCPM-V-4.6-Thinking-BNB`
 - `MODEL_DIR=models/MiniCPM-V-4.6-Thinking`
@@ -42,116 +42,115 @@ Default local configuration from `"config/local.env"`:
 - `WEBUI_PORT=7863`
 - `MAX_NEW_TOKENS=1024`
 
-The local runtime aligns the Thinking checkpoint with:
+其中 `Thinking` 模型的本地推理已和官方推荐行为对齐：
 
-- `enable_thinking=False`
-- stop token IDs `[248044, 248046]`
+- 使用 `enable_thinking=False`
+- 使用停止词 `248044`、`248046`
 
-This avoids incomplete visible reasoning output and keeps final answers cleaner.
+这样可以避免把思考过程直接暴露给前端，同时减少回答被截断的问题。
 
-## 4. Supported Inputs
+## 4. 输入能力
 
-Current local input support:
+当前本地交付支持的输入类型如下：
 
-- Image: supported
-- Video: supported
-- Pure audio: not supported by MiniCPM-V 4.6 in this delivery
+- 图片：支持
+- 视频：支持
+- 纯音频：当前仅返回占位提示
 
-Video handling strategy:
+视频处理策略：
 
-- The API accepts `video_url`
-- The local helper uses `ffmpeg` / `ffprobe`
-- The video is converted into representative frames
-- The frames are then sent to the model as multi-image input
+- API 支持 `video_url`
+- 本地辅助模块使用 `ffmpeg` / `ffprobe`
+- 视频会先被抽帧
+- 抽出的代表帧再作为多图输入送入模型
 
-Audio handling strategy:
+音频处理策略：
 
-- The WebUI can select audio files
-- The API can receive `audio_url`
-- The current response is a placeholder message because MiniCPM-V 4.6 does not provide native pure-audio understanding in this delivery
+- WebUI 可以选择音频文件
+- API 可以接收 `audio_url`
+- 当前部署基于 `MiniCPM-V 4.6`，不具备原生纯音频理解能力，因此返回友好提示，而不是报错中断
 
-## 5. Installation
+## 5. 安装
 
-Run in PowerShell from the project root:
+在项目根目录执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "scripts/install.ps1"
 ```
 
-What the installer does:
+安装脚本会完成以下工作：
 
-- installs project-local Python 3.11 if needed
-- upgrades `pip`
-- installs `torch`
-- installs packages from `"requirements_local.txt"`
+- 如有需要，安装项目内 Python 3.11
+- 升级 `pip`
+- 安装 `torch`
+- 安装 `"requirements_local.txt"` 中的依赖
 
-## 6. Start Services
+## 6. 启动方式
 
-### Option A: Unified Start
+### 方式 A：统一启动
 
-Run:
+直接双击或执行：
 
 ```bat
 "scripts\start_stack.bat"
 ```
 
-Behavior:
+行为说明：
 
-- starts API and WebUI from one window
-- auto-selects the next available API port starting from `8000`
-- auto-selects the next available WebUI port starting from `7860`
-- keeps the console window open after the script returns
+- 在同一个窗口里启动 API 和 WebUI
+- API 端口从 `8000` 开始自动顺延
+- WebUI 端口从 `7860` 开始自动顺延
+- 脚本返回后窗口仍会保留，便于查看错误信息
 
-### Option B: Start Separately
+### 方式 B：分别启动
 
-Start API:
+启动 API：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "scripts/start_api.ps1"
 ```
 
-Start WebUI:
+启动 WebUI：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "scripts/start_webui.ps1"
 ```
 
-## 7. API Endpoints
+## 7. API 端点
 
-Main endpoints:
+本地主要端点如下：
 
 - `GET /health`
 - `GET /v1/models`
 - `POST /v1/chat/completions`
 
-OpenAI-compatible local base URL example:
+默认本地 OpenAI 兼容基础地址示例：
 
 ```text
 http://127.0.0.1:8000/v1
 ```
 
-## 8. WebUI Notes
+如果统一启动器自动顺延了端口，请以控制台实际输出为准。
 
-The local WebUI currently supports:
+## 8. WebUI 说明
 
-- image file upload
-- video file upload
-- audio file selection with placeholder response
-- Chinese answer preference
-- thinking output suppression for end users
+当前 WebUI 支持：
 
-If the unified launcher chooses a different port, use the port shown in the console.
+- 图片上传
+- 视频上传
+- 音频文件选择并返回占位提示
+- 中文回答偏好
+- 自动过滤思考过程输出
 
-## 9. Known Limitations
+## 9. 已知限制
 
-- Pure audio understanding is not implemented in this delivery
-- Video understanding is frame-based, not native end-to-end video decoding inside the API layer
-- Large local models under `"models/"` are not suitable for normal source control push
-- The working tree currently contains many local runtime artifacts and downloaded assets
+- 纯音频理解尚未实现
+- 视频理解当前为抽帧方案，不是端到端原生视频解码
+- `"models/"` 下的大模型文件不适合直接纳入常规源码仓库
+- 本地运行时依赖与下载资产建议通过 `.gitignore` 隔离
 
-## 10. Recommended Next Steps
+## 10. 后续建议
 
-- add a dedicated local `.gitignore` strategy before long-term maintenance
-- separate delivery docs from upstream docs more clearly
-- decide whether pure audio should use ASR or migrate to `MiniCPM-o`
-- refine startup supervision and shutdown cleanup further if needed
+- 如需真实音频理解，可考虑接入 ASR 或迁移到 `MiniCPM-o`
+- 如需长期维护，建议继续细化本地 `.gitignore` 与发布流程
+- 如需团队协作，建议把本地安装、运行、排障文档继续拆分细化
