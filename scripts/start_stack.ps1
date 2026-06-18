@@ -123,8 +123,95 @@ function Stop-ManagedProcess {
     }
 }
 
+function Get-DescendantProcessIds {
+    Param(
+        [int]$RootProcessId
+    )
+
+    try {
+        $allProcesses = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+    } catch {
+        Write-Host ("Failed to query child processes for PID {0}: {1}" -f $RootProcessId, $_.Exception.Message)
+        return @()
+    }
+
+    $childrenByParent = @{}
+    foreach ($proc in $allProcesses) {
+        $parentId = [int]$proc.ParentProcessId
+        if (-not $childrenByParent.ContainsKey($parentId)) {
+            $childrenByParent[$parentId] = New-Object System.Collections.Generic.List[int]
+        }
+        $childrenByParent[$parentId].Add([int]$proc.ProcessId)
+    }
+
+    $orderedChildIds = New-Object System.Collections.Generic.List[int]
+
+    function Add-ChildProcessIds {
+        Param(
+            [int]$ParentId
+        )
+
+        if (-not $childrenByParent.ContainsKey($ParentId)) {
+            return
+        }
+
+        foreach ($childId in $childrenByParent[$ParentId]) {
+            Add-ChildProcessIds -ParentId $childId
+            $orderedChildIds.Add($childId)
+        }
+    }
+
+    Add-ChildProcessIds -ParentId $RootProcessId
+    return @($orderedChildIds)
+}
+
+function Stop-ManagedProcessTree {
+    Param(
+        [System.Diagnostics.Process]$Process,
+        [string]$Name
+    )
+
+    if ($null -eq $Process) {
+        return
+    }
+
+    $rootProcessId = 0
+    try {
+        $rootProcessId = [int]$Process.Id
+    } catch {
+        return
+    }
+
+    foreach ($childProcessId in (Get-DescendantProcessIds -RootProcessId $rootProcessId)) {
+        try {
+            Stop-Process -Id $childProcessId -Force -ErrorAction Stop
+            Write-Host ("Stopped child process {0} for {1}." -f $childProcessId, $Name)
+        } catch {
+            # Ignore already-exited children and continue clearing the process tree.
+        }
+    }
+
+    Stop-ManagedProcess -Process $Process -Name $Name
+}
+
 $apiProcess = $null
 $webuiProcess = $null
+$cleanupDone = $false
+$cleanupEvent = $null
+
+function Invoke-ManagedCleanup {
+    if ($cleanupDone) {
+        return
+    }
+
+    $script:cleanupDone = $true
+    Stop-ManagedProcessTree -Process $webuiProcess -Name "WebUI"
+    Stop-ManagedProcessTree -Process $apiProcess -Name "API"
+}
+
+$cleanupEvent = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
+    Invoke-ManagedCleanup
+}
 
 try {
     $apiProcess = Start-ManagedPythonProcess `
@@ -168,6 +255,9 @@ try {
     }
 }
 finally {
-    Stop-ManagedProcess -Process $webuiProcess -Name "WebUI"
-    Stop-ManagedProcess -Process $apiProcess -Name "API"
+    Invoke-ManagedCleanup
+    if ($null -ne $cleanupEvent) {
+        Unregister-Event -SourceIdentifier PowerShell.Exiting -ErrorAction SilentlyContinue
+        Remove-Job -Id $cleanupEvent.Id -Force -ErrorAction SilentlyContinue
+    }
 }

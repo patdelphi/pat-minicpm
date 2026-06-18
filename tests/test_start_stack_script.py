@@ -21,6 +21,14 @@ def test_start_stack_ps1_uses_single_window_supervision():
     assert '$psi.ArgumentList' not in script
     assert '$psi.Arguments =' in script
     assert ".EnvironmentVariables" in script
+    assert "function Get-DescendantProcessIds" in script
+    assert "function Stop-ManagedProcessTree" in script
+    assert "function Invoke-ManagedCleanup" in script
+    assert "Register-EngineEvent -SourceIdentifier PowerShell.Exiting" in script
+    assert "Invoke-ManagedCleanup" in script
+    assert "Stop-ManagedProcessTree -Process $webuiProcess" in script
+    assert "Stop-ManagedProcessTree -Process $apiProcess" in script
+    assert "Unregister-Event -SourceIdentifier PowerShell.Exiting" in script
 
 
 def test_start_stack_bat_does_not_claim_new_windows():
