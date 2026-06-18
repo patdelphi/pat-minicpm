@@ -1,0 +1,7 @@
+transformers[serving]>=5.7.0
+accelerate
+gradio
+requests
+pillow
+bitsandbytes
+pytest

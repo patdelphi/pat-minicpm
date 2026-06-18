@@ -1,3 +1,16 @@
 *.bk
 __pycache__
 .DS_Store
+*.log
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Local runtime artifacts for this delivery.
+models/
+tools/
+chat_history.md
+
+# Local manual test assets.
+assets/test1.png
+assets/*.mp3
