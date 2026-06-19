@@ -24,10 +24,17 @@ def test_start_stack_ps1_uses_single_window_supervision():
     assert "function Get-DescendantProcessIds" in script
     assert "function Stop-ManagedProcessTree" in script
     assert "function Invoke-ManagedCleanup" in script
+    assert "function Add-ManagedProcessId" in script
+    assert "function Update-ManagedProcessIds" in script
+    assert "function Stop-RecordedManagedProcesses" in script
+    assert '$managedProcessIds = New-Object System.Collections.Generic.HashSet[int]' in script
     assert "Register-EngineEvent -SourceIdentifier PowerShell.Exiting" in script
     assert "Invoke-ManagedCleanup" in script
     assert "Stop-ManagedProcessTree -Process $webuiProcess" in script
     assert "Stop-ManagedProcessTree -Process $apiProcess" in script
+    assert "Stop-RecordedManagedProcesses" in script
+    assert "Update-ManagedProcessIds -RootProcess $apiProcess" in script
+    assert "Update-ManagedProcessIds -RootProcess $webuiProcess" in script
     assert "Unregister-Event -SourceIdentifier PowerShell.Exiting" in script
 
 

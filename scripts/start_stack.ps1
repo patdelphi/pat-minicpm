@@ -198,6 +198,58 @@ $apiProcess = $null
 $webuiProcess = $null
 $cleanupDone = $false
 $cleanupEvent = $null
+$managedProcessIds = New-Object System.Collections.Generic.HashSet[int]
+
+function Add-ManagedProcessId {
+    Param(
+        [int]$ProcessId
+    )
+
+    if ($ProcessId -le 0) {
+        return
+    }
+
+    $null = $managedProcessIds.Add($ProcessId)
+}
+
+function Update-ManagedProcessIds {
+    Param(
+        [System.Diagnostics.Process]$RootProcess
+    )
+
+    if ($null -eq $RootProcess) {
+        return
+    }
+
+    try {
+        Add-ManagedProcessId -ProcessId ([int]$RootProcess.Id)
+    } catch {
+        return
+    }
+
+    foreach ($childProcessId in (Get-DescendantProcessIds -RootProcessId $RootProcess.Id)) {
+        Add-ManagedProcessId -ProcessId $childProcessId
+    }
+}
+
+function Stop-RecordedManagedProcesses {
+    $processIdsToStop = @($managedProcessIds | Sort-Object -Descending)
+
+    foreach ($processId in $processIdsToStop) {
+        try {
+            $process = Get-Process -Id $processId -ErrorAction Stop
+        } catch {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $processId -Force -ErrorAction Stop
+            Write-Host ("Stopped recorded managed process {0} ({1})." -f $processId, $process.ProcessName)
+        } catch {
+            Write-Host ("Failed to stop recorded managed process {0}: {1}" -f $processId, $_.Exception.Message)
+        }
+    }
+}
 
 function Invoke-ManagedCleanup {
     if ($cleanupDone) {
@@ -205,8 +257,11 @@ function Invoke-ManagedCleanup {
     }
 
     $script:cleanupDone = $true
+    Update-ManagedProcessIds -RootProcess $webuiProcess
+    Update-ManagedProcessIds -RootProcess $apiProcess
     Stop-ManagedProcessTree -Process $webuiProcess -Name "WebUI"
     Stop-ManagedProcessTree -Process $apiProcess -Name "API"
+    Stop-RecordedManagedProcesses
 }
 
 $cleanupEvent = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
@@ -221,6 +276,7 @@ try {
             "API_HOST" = "$apiHost"
             "API_PORT" = "$apiPort"
         }
+    Update-ManagedProcessIds -RootProcess $apiProcess
 
     Start-Sleep -Seconds 2
 
@@ -232,6 +288,7 @@ try {
             "WEBUI_PORT" = "$webuiPort"
             "OPENAI_BASE_URL" = "$openaiBaseUrl"
         }
+    Update-ManagedProcessIds -RootProcess $webuiProcess
 
     Write-Host "API starting on http://127.0.0.1:$apiPort/"
     Write-Host "WebUI starting on http://$webuiHost`:$webuiPort/"
@@ -239,6 +296,8 @@ try {
 
     while ($true) {
         Start-Sleep -Seconds 1
+        Update-ManagedProcessIds -RootProcess $apiProcess
+        Update-ManagedProcessIds -RootProcess $webuiProcess
         Flush-ManagedProcessOutput -Process $apiProcess -Name "API"
         Flush-ManagedProcessOutput -Process $webuiProcess -Name "WEBUI"
 
